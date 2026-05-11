@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PD Template → Coda Schema Diffs</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --ink: #1a1a1a;
+    --ink-light: #555;
+    --rule: #e0dcd6;
+    --bg: #faf9f7;
+    --card: #ffffff;
+    --add: #d4edda;
+    --add-text: #1a5e2e;
+    --add-border: #6fc08a;
+    --del: #fde8e8;
+    --del-text: #7a1f1f;
+    --del-border: #e08080;
+    --chg: #fff3cd;
+    --chg-text: #5a4000;
+    --chg-border: #d4a820;
+    --ren: #e3eeff;
+    --ren-text: #1a3060;
+    --ren-border: #6090d8;
+    --unc: #f2f2f2;
+    --unc-text: #444;
+    --unc-border: #b0b0b0;
+    --risk: #fff0e8;
+    --risk-border: #e06020;
+    --accent: #2a5298;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.6;
+    font-size: 14px;
+  }
+
+  .page-wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 48px 40px 80px;
+  }
+
+  /* HEADER */
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 24px;
+    margin-bottom: 40px;
+  }
+
+  .doc-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 10px;
+  }
+
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+
+  .meta-row {
+    display: flex;
+    gap: 32px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  .meta-item {
+    font-size: 12px;
+    color: var(--ink-light);
+  }
+  .meta-item strong { color: var(--ink); font-weight: 500; }
+
+  /* RISK BOX */
+  .risk-box {
+    background: var(--risk);
+    border-left: 4px solid var(--risk-border);
+    border-radius: 4px;
+    padding: 18px 22px;
+    margin-bottom: 40px;
+  }
+  .risk-box .risk-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--risk-border);
+    margin-bottom: 6px;
+  }
+  .risk-box p {
+    font-size: 13.5px;
+    color: #3a2000;
+    line-height: 1.6;
+  }
+
+  /* SECTION */
+  .section {
+    margin-bottom: 56px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 6px;
+  }
+
+  .section-tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    white-space: nowrap;
+  }
+
+  .section h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--ink);
+  }
+
+  .section-desc {
+    font-size: 13px;
+    color: var(--ink-light);
+    margin-bottom: 20px;
+    max-width: 680px;
+    line-height: 1.7;
+  }
+
+  /* LEGEND */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 3px;
+  }
+  .badge-add { background: var(--add); color: var(--add-text); border: 1px solid var(--add-border); }
+  .badge-del { background: var(--del); color: var(--del-text); border: 1px solid var(--del-border); }
+  .badge-chg { background: var(--chg); color: var(--chg-text); border: 1px solid var(--chg-border); }
+  .badge-ren { background: var(--ren); color: var(--ren-text); border: 1px solid var(--ren-border); }
+  .badge-unc { background: var(--unc); color: var(--unc-text); border: 1px solid var(--unc-border); }
+
+  /* TABLE */
+  .diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  .diff-table th {
+    background: #f0ece6;
+    font-weight: 600;
+    font-size: 10.5px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+
+  .diff-table td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  .diff-table tr:last-child td { border-bottom: none; }
+
+  .diff-table tr.row-add td { background: #f4fcf6; }
+  .diff-table tr.row-del td { background: #fdf4f4; }
+  .diff-table tr.row-chg td { background: #fffdf0; }
+  .diff-table tr.row-ren td { background: #f3f7ff; }
+  .diff-table tr.row-unc td { background: #fafafa; color: #666; }
+
+  .diff-table td .badge {
+    margin-bottom: 0;
+  }
+
+  td.notes {
+    color: var(--ink-light);
+    font-size: 12px;
+    max-width: 260px;
+  }
+
+  td.notes em {
+    font-style: italic;
+  }
+
+  td.old-field {
+    text-decoration: line-through;
+    color: #999;
+  }
+
+  td.new-field {
+    font-weight: 500;
+  }
+
+  .coda-impact {
+    font-size: 11px;
+    background: #f5f0ff;
+    color: #3a0070;
+    border: 1px solid #c0a0e0;
+    border-radius: 3px;
+    padding: 2px 7px;
+    display: inline-block;
+    margin-top: 3px;
+  }
+
+  /* TABLE SUBSECTION LABEL */
+  .sub-label td {
+    background: #f0ece6 !important;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    padding: 6px 14px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  /* RECOMMENDATION SECTION */
+  .rec-box {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 28px 32px;
+    margin-bottom: 32px;
+  }
+
+  .rec-box h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    font-weight: 400;
+    margin-bottom: 14px;
+    color: var(--ink);
+  }
+
+  .rec-box p {
+    font-size: 13.5px;
+    color: var(--ink);
+    margin-bottom: 12px;
+    line-height: 1.7;
+  }
+
+  .rec-box ul, .rec-box ol {
+    padding-left: 22px;
+    margin-bottom: 12px;
+  }
+
+  .rec-box li {
+    font-size: 13px;
+    margin-bottom: 7px;
+    line-height: 1.6;
+    color: var(--ink);
+  }
+
+  .rec-box li strong { font-weight: 600; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 8px;
+  }
+
+  @media (max-width: 680px) {
+    .two-col { grid-template-columns: 1fr; }
+    .page-wrap { padding: 24px 20px 60px; }
+  }
+
+  .audience-card {
+    background: #f5f7ff;
+    border: 1px solid #c8d8f0;
+    border-radius: 5px;
+    padding: 16px 18px;
+  }
+  .audience-card h4 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .audience-card ul {
+    padding-left: 16px;
+    margin: 0;
+  }
+  .audience-card li {
+    font-size: 12.5px;
+    color: var(--ink);
+    margin-bottom: 5px;
+  }
+
+  /* SUMMARY COUNTS */
+  .summary-counts {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+
+  .count-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid;
+  }
+  .count-pill .num {
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .pill-add { background: var(--add); color: var(--add-text); border-color: var(--add-border); }
+  .pill-del { background: var(--del); color: var(--del-text); border-color: var(--del-border); }
+  .pill-chg { background: var(--chg); color: var(--chg-text); border-color: var(--chg-border); }
+  .pill-ren { background: var(--ren); color: var(--ren-text); border-color: var(--ren-border); }
+
+  /* ARCHITECT CALLOUT */
+  .arch-callout {
+    background: #f5f0ff;
+    border: 1px solid #c0a0e0;
+    border-radius: 5px;
+    padding: 14px 18px;
+    margin-top: 16px;
+    font-size: 12.5px;
+    color: #3a0070;
+    line-height: 1.6;
+  }
+  .arch-callout strong { font-weight: 700; }
+
+  hr.divider {
+    border: none;
+    border-top: 1px solid var(--rule);
+    margin: 48px 0;
+  }
+
+  /* PRINT */
+  @media print {
+    .page-wrap { padding: 20px; }
+    .risk-box, .rec-box, .arch-callout { break-inside: avoid; }
+    .diff-table { break-inside: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <header>
+    <div class="doc-label">Program Design · Schema Analysis</div>
+    <h1>New PD Templates → Coda Schema Diffs</h1>
+    <div class="meta-row">
+      <div class="meta-item"><strong>Prepared for:</strong> Kristen (PD PMO), Coda Architect, PD Leadership</div>
+      <div class="meta-item"><strong>Date:</strong> May 2026</div>
+      <div class="meta-item"><strong>Templates analyzed:</strong> CCW v3 · V&amp;S v1 · PDOW v1</div>
+      <div class="meta-item"><strong>Compared against:</strong> Coda "Design &amp; Development V3" (doc 4YIajnJqvo)</div>
+    </div>
+  </header>
+
+  <!-- RISK BANNER -->
+  <div class="risk-box">
+    <div class="risk-label">⚠ Migration Risk</div>
+    <p>PD teams working from the new templates are producing content that maps to fields <em>not yet in Coda</em> — while the existing Coda doc still expects the old schema. <strong>Programs must not be asked to enter new-template data into old Coda docs.</strong> Any program transitioning to these new templates needs a fresh, scaffolded Coda doc built against the new schema before data entry begins.</p>
+  </div>
+
+  <!-- ===================== CCW ===================== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag">Template 1 of 3</span>
+      <h2>Competency Context Worksheet (CCW) — v3</h2>
+    </div>
+    <p class="section-desc">
+      The new CCW restructures course-level context significantly. The single "Scope Notes" field has been split into five distinct sections (Rationale/Vision, Workforce Relevance, Outcomes, Scope, Sequence). The assessment section has been reframed from a structured form into a narrative field. Three new fields have no corresponding Coda column.
+    </p>
+
+    <div class="summary-counts">
+      <div class="count-pill pill-add"><span class="num">6</span> Added</div>
+      <div class="count-pill pill-del"><span class="num">3</span> Removed</div>
+      <div class="count-pill pill-ren"><span class="num">4</span> Renamed</div>
+      <div class="count-pill pill-chg"><span class="num">1</span> Restructured</div>
+    </div>
+
+    <div class="legend">
+      <span class="badge badge-add">● Added</span>
+      <span class="badge badge-del">● Removed</span>
+      <span class="badge badge-ren">● Renamed</span>
+      <span class="badge badge-chg">● Restructured</span>
+      <span class="badge badge-unc">● Unchanged</span>
+    </div>
+
+    <table class="diff-table">
+      <thead>
+        <tr>
+          <th style="width:90px">Status</th>
+          <th>Old Field (Current Coda)</th>
+          <th>New Template Field</th>
+          <th class="notes">Schema Impact</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="sub-label"><td colspan="4">Course-Level Fields</td></tr>
+
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">Course Rationale and Vision</td>
+          <td class="notes"><span class="coda-impact">New column needed in _Courses</span></td>
+        </tr>
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">Workforce Relevance and Alignment</td>
+          <td class="notes"><span class="coda-impact">New column needed in _Courses</span></td>
+        </tr>
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">Course Level Outcomes</td>
+          <td class="notes"><span class="coda-impact">New column needed in _Courses</span></td>
+        </tr>
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">Course Sequence</td>
+          <td class="notes"><em>Where this course sits in program flow.</em> <span class="coda-impact">New column needed in _Courses</span></td>
+        </tr>
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">Description of Ideal Learning Experience</td>
+          <td class="notes"><em>Distinct from LR Strategy — focuses on student experience design.</em> <span class="coda-impact">New column needed in _Courses</span></td>
+        </tr>
+        <tr class="row-ren">
+          <td><span class="badge badge-ren">Renamed</span></td>
+          <td class="old-field">Scope Notes</td>
+          <td class="new-field">Course Scope</td>
+          <td class="notes">Same concept, new label. Coda column can be retitled.</td>
+        </tr>
+        <tr class="row-chg">
+          <td><span class="badge badge-chg">Restructured</span></td>
+          <td class="old-field">Assessment Modality + Rationale + Evidence + ASMT Notes (4 separate fields)</td>
+          <td class="new-field">Description of Ideal Assessment Experience (single narrative field)</td>
+          <td class="notes"><em>Four discrete fields collapsed into one narrative. Architect decision needed: retire 4 columns or keep for structured queries.</em> <span class="coda-impact">Likely merge/deprecate c-k928L_ucpO, c-XLbFh1-a65, c-orP3pac0Hk</span></td>
+        </tr>
+        <tr class="row-ren">
+          <td><span class="badge badge-ren">Renamed</span></td>
+          <td class="old-field">Course Level LR Strategy</td>
+          <td class="new-field">Course Level LR Strategy and Recommendations</td>
+          <td class="notes">Same concept, minor label update.</td>
+        </tr>
+        <tr class="row-ren">
+          <td><span class="badge badge-ren">Renamed</span></td>
+          <td class="old-field">Tools &amp; Tech</td>
+          <td class="new-field">Course Level Critical Tools and Technologies</td>
+          <td class="notes">Same concept, minor label update.</td>
+        </tr>
+        <tr class="row-del">
+          <td><span class="badge badge-del">Removed</span></td>
+          <td class="old-field">Course Modality (standalone field)</td>
+          <td class="new-field">—</td>
+          <td class="notes"><em>No longer a top-level course field. Modality is now only recorded per-competency.</em></td>
+        </tr>
+        <tr class="row-del">
+          <td><span class="badge badge-del">Removed</span></td>
+          <td class="old-field">Existing / New / Redev flag</td>
+          <td class="new-field">—</td>
+          <td class="notes"><em>Moved to PDOW standard path. CCW no longer tracks this.</em></td>
+        </tr>
+        <tr class="row-del">
+          <td><span class="badge badge-del">Removed</span></td>
+          <td class="old-field">Previous Course Code</td>
+          <td class="new-field">—</td>
+          <td class="notes"><em>Follows Existing/New/Redev — moved to PDOW.</em></td>
+        </tr>
+
+        <tr class="sub-label"><td colspan="4">Per-Competency Fields</td></tr>
+
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Competency Title</td>
+          <td>Competency Title</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Competency Statement</td>
+          <td>Competency Statement</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Target Level (1–4)</td>
+          <td>Target Level</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Skills (Category, Title, Statement)</td>
+          <td>Skills (Category, Title, Statement)</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-ren">
+          <td><span class="badge badge-ren">Renamed</span></td>
+          <td class="old-field">Modality Rationale</td>
+          <td class="new-field">Rationale for Competency Related to Workforce or Degree</td>
+          <td class="notes">Reframed to explicitly tie rationale to workforce/degree relevance.</td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Evidence</td>
+          <td>Potential Evidence of Competency at Specified Level</td>
+          <td class="notes">Slightly expanded label, same data.</td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Recommended Modality</td>
+          <td>Recommended Modality</td>
+          <td class="notes">Still captured within Assessment Recommendations block.</td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Additional Scope Notes / Requirements</td>
+          <td>Additional Scope Notes and Requirements</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">Standards Alignment removed as named field</td>
+          <td class="notes"><em>AACN/standards content now folds into Scope Notes at the author's discretion — no longer a distinct named section.</em></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="arch-callout">
+      <strong>Architect Note:</strong> The _Courses table needs 5 new columns. The more complex decision is whether to deprecate the 4 old assessment columns (c-k928L_ucpO, c-XLbFh1-a65, c-orP3pac0Hk, c-sWmJbOaqEx) or retain them for backward compatibility with programs still on the old model. Recommend keeping old columns hidden/inactive for existing programs and provisioning new columns only in new-schema docs.
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===================== V&S ===================== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag">Template 2 of 3</span>
+      <h2>Program Design Vision &amp; Strategy (V&amp;S) — v1</h2>
+    </div>
+    <p class="section-desc">
+      The new V&amp;S template introduces two structurally new tables (Portfolio Crosswalk and Additional Feature Strategy), promotes GE Outcomes from a "skip" section to required content, and renames the Learning Resource strategy as "Learning Experience Strategy" — a meaningful scope shift that affects how Coda's strategy tables are labeled and queried.
+    </p>
+
+    <div class="summary-counts">
+      <div class="count-pill pill-add"><span class="num">3</span> Added</div>
+      <div class="count-pill pill-del"><span class="num">3</span> Removed</div>
+      <div class="count-pill pill-ren"><span class="num">2</span> Renamed</div>
+      <div class="count-pill pill-chg"><span class="num">2</span> Changed</div>
+    </div>
+
+    <div class="legend">
+      <span class="badge badge-add">● Added</span>
+      <span class="badge badge-del">● Removed</span>
+      <span class="badge badge-ren">● Renamed</span>
+      <span class="badge badge-chg">● Changed</span>
+      <span class="badge badge-unc">● Unchanged</span>
+    </div>
+
+    <table class="diff-table">
+      <thead>
+        <tr>
+          <th style="width:90px">Status</th>
+          <th>Old Section / Table (Coda)</th>
+          <th>New Template Section</th>
+          <th class="notes">Schema Impact</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="sub-label"><td colspan="4">Main PDVS Doc &amp; Program-Level Tables</td></tr>
+
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Products &amp; Rationale</td>
+          <td>Proposed Product(s) and Rationale</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Proposed Credentials (Type, Name, Market Value)</td>
+          <td>Proposed Credentials</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">Proposed Portfolio Crosswalk</td>
+          <td class="notes"><em>Multi-column side-by-side comparison table for programs in a portfolio. No equivalent in current Coda.</em> <span class="coda-impact">New table needed</span></td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Program Description</td>
+          <td>Draft Program Description</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Program Learning Outcomes (Title, Statement, Measured By)</td>
+          <td>Draft Program Learning Outcomes</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-chg">
+          <td><span class="badge badge-chg">Changed</span></td>
+          <td class="old-field">GE Program Outcomes — <em>SKIP in current import</em></td>
+          <td class="new-field">Draft GE Program Outcomes — <em>7 standardized outcomes pre-populated</em></td>
+          <td class="notes"><em>GE Outcomes are now required content, not optional. The 7 GE Outcomes are standardized institution-wide.</em> Coda already has an Outcome Type = "GE Outcome" select value, but these rows are never currently populated via import. <span class="coda-impact">Import skill must be updated to populate GE Outcome rows</span></td>
+        </tr>
+        <tr class="row-chg">
+          <td><span class="badge badge-chg">Changed</span></td>
+          <td class="old-field">Proposed Standard Path (Term, Code, Name, CU, Modality)</td>
+          <td class="new-field">Standard Path and Assessment Traverse (adds: Owner, Assessment Experience columns)</td>
+          <td class="notes"><em>"Owner" column (Gen Ed / LSH / WST / WSB / WSE) and "Assessment Modality and Experience" are new fields on each course row.</em> <span class="coda-impact">New columns on _Progs | _Courses or Standard Path table</span></td>
+        </tr>
+
+        <tr class="sub-label"><td colspan="4">Design Features — Strategy Tables</td></tr>
+
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Student Support Strategy (What/Why, How, Priority)</td>
+          <td>Student Support Strategy</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-ren">
+          <td><span class="badge badge-ren">Renamed</span></td>
+          <td class="old-field">Program Assessment Strategy</td>
+          <td class="new-field">Assessment Experience Strategy</td>
+          <td class="notes">Name shift emphasizes the student experience. Same 3-column structure.</td>
+        </tr>
+        <tr class="row-ren">
+          <td><span class="badge badge-ren">Renamed</span></td>
+          <td class="old-field">Learning Resource Strategy</td>
+          <td class="new-field">Learning Experience Strategy</td>
+          <td class="notes"><em>Significant scope shift — moves from "resources" to the broader "experience" framing. Impacts how the strategy is written and how it should be categorized in Coda.</em> <span class="coda-impact">Table rename + summary field label update</span></td>
+        </tr>
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">[Additional Feature] Strategy (extensible, named by program)</td>
+          <td class="notes"><em>Optional/named strategy table for program-specific needs. Not a fixed schema — the table header is a variable.</em> <span class="coda-impact">Flexible new table or a "catch-all" strategy table needed</span></td>
+        </tr>
+
+        <tr class="sub-label"><td colspan="4">Program Experience / Ecosystem</td></tr>
+
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Course Authoring &amp; Delivery</td>
+          <td>Course Authoring &amp; Delivery</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Assessment Authoring &amp; Delivery</td>
+          <td>Assessment Authoring &amp; Delivery</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Critical Tools / Technologies</td>
+          <td>Critical Tools / Technologies</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Risks</td>
+          <td>Risks</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-del">
+          <td><span class="badge badge-del">Removed</span></td>
+          <td class="old-field">Eco-System Components (select value row)</td>
+          <td class="new-field">—</td>
+          <td class="notes"><em>This select list value/row is present in current Coda but absent from new template. Confirm whether to retire it.</em></td>
+        </tr>
+
+        <tr class="sub-label"><td colspan="4">Outputs / Inputs</td></tr>
+
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Outputs from Program Design (with Link, Description)</td>
+          <td>Outputs from Program Design</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Inputs to Program Design (with Link, Description)</td>
+          <td>Inputs to Program Design</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-del">
+          <td><span class="badge badge-del">Removed</span></td>
+          <td class="old-field">Practicum Strategy (sub-table)</td>
+          <td class="new-field">—</td>
+          <td class="notes"><em>Not present in new base template. May remain as optional for health programs — confirm with PMO.</em></td>
+        </tr>
+        <tr class="row-del">
+          <td><span class="badge badge-del">Removed</span></td>
+          <td class="old-field">Clinical Experience Strategy (sub-table)</td>
+          <td class="new-field">—</td>
+          <td class="notes"><em>Same as above — omitted from new base template.</em></td>
+        </tr>
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">Design Feature Summaries now include "Additional Features" summary bullet</td>
+          <td class="notes"><em>The summary block adds a 5th bullet for the extensible feature strategy.</em> <span class="coda-impact">New summary column on main PDVS table</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="arch-callout">
+      <strong>Architect Note:</strong> Two decisions are blocking: (1) The Portfolio Crosswalk is a new structural table with no Coda analog — needs design before any V&S imports. (2) The "Learning Experience Strategy" rename is not just cosmetic — if the LR Strategy table is renamed, any formulas, views, or downstream reports referencing it by name must be updated. Also: the [Additional Feature] strategy is variable by program — consider a flexible "catch-all" strategy table with a program-defined Type column, rather than creating a new fixed table per program.
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===================== PDOW ===================== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag">Template 3 of 3</span>
+      <h2>Program Design Outputs Workbook (PDOW) — v1</h2>
+    </div>
+    <p class="section-desc">
+      The new PDOW is a significantly expanded workbook. It grows from 1–2 working tabs to 6. The most architecturally important change: GE Program Outcomes are now explicitly mapped (with A/X values) alongside program-specific outcomes and CCTs — requiring new or extended Coda junction tables for this data to flow in.
+    </p>
+
+    <div class="summary-counts">
+      <div class="count-pill pill-add"><span class="num">5</span> Sheets Added</div>
+      <div class="count-pill pill-chg"><span class="num">2</span> Changed</div>
+      <div class="count-pill pill-ren"><span class="num">1</span> Renamed</div>
+    </div>
+
+    <div class="legend">
+      <span class="badge badge-add">● Added</span>
+      <span class="badge badge-del">● Removed</span>
+      <span class="badge badge-ren">● Renamed</span>
+      <span class="badge badge-chg">● Changed</span>
+      <span class="badge badge-unc">● Unchanged</span>
+    </div>
+
+    <table class="diff-table">
+      <thead>
+        <tr>
+          <th style="width:90px">Status</th>
+          <th>Old Sheet / Structure</th>
+          <th>New Sheet / Structure</th>
+          <th class="notes">Schema Impact</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="sub-label"><td colspan="4">Workbook Sheets</td></tr>
+
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">Current SP Recommendations</td>
+          <td class="notes"><em>Current standard path with performance metrics (CCR, pass rates, median days). Analytics-heavy sheet.</em> <span class="coda-impact">New data if imported — needs schema discussion</span></td>
+        </tr>
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">Existing Competency Progression</td>
+          <td class="notes"><em>Maps all existing competencies by course for current-state documentation.</em> <span class="coda-impact">Confirm whether to import or treat as reference-only</span></td>
+        </tr>
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">Future {Prog Acro} Stand. Path</td>
+          <td class="notes"><em>Proposed future standard path with performance baseline metrics carried forward.</em> <span class="coda-impact">Maps to existing Standard Path tables; import skill update needed</span></td>
+        </tr>
+        <tr class="row-ren">
+          <td><span class="badge badge-ren">Renamed</span></td>
+          <td class="old-field">program map (mapping tab)</td>
+          <td class="new-field">{Acronym} Program Map</td>
+          <td class="notes">Same core function, renamed and structurally extended.</td>
+        </tr>
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">Outcomes and Themes Defined</td>
+          <td class="notes"><em>Reference sheet defining all program-specific outcomes, GE Outcomes, and CCTs in one place.</em></td>
+        </tr>
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">—</td>
+          <td class="new-field">Program Map Instructions</td>
+          <td class="notes"><em>Documentation tab. Not imported.</em></td>
+        </tr>
+
+        <tr class="sub-label"><td colspan="4">Program Map Tab — Column Changes</td></tr>
+
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Course / Competency detail columns</td>
+          <td>Term, Course #, Course, CU, Assessment Modality, Credential, Scope, Ownership, Competency Title/Statement/Level</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Program Outcomes (I, R, M, A, X)</td>
+          <td>Degree-Specific Program Outcomes (I, R, M, A, X)</td>
+          <td class="notes">Same IRMA/X logic, now explicitly labeled "Degree-Specific".</td>
+        </tr>
+        <tr class="row-add">
+          <td><span class="badge badge-add">Added</span></td>
+          <td class="old-field">— (GE was not mapped in old PDOW)</td>
+          <td class="new-field">GE Program Outcomes (A at course level, X at competency level)</td>
+          <td class="notes"><em>7 standardized GE Outcomes now explicitly tracked. GE uses <strong>A/X only</strong> — no IRM at course level per template instructions.</em> <span class="coda-impact">New junction tables needed: Course→GE Outcome (A only), Comp→GE Outcome (X only). OR extend existing _Progs_Courses|_Progs Outcomes table with GE Outcome type flag.</span></td>
+        </tr>
+        <tr class="row-unc">
+          <td><span class="badge badge-unc">Unchanged</span></td>
+          <td>Cross-Cutting Themes (I, R, M, X)</td>
+          <td>Cross-Cutting Themes (I, R, M, X)</td>
+          <td class="notes">—</td>
+        </tr>
+        <tr class="row-chg">
+          <td><span class="badge badge-chg">Changed</span></td>
+          <td class="old-field">Assessment Modality: OA / PA / Certification</td>
+          <td class="new-field">Assessment Modality: OA / PA / Third Party Cert</td>
+          <td class="notes"><em>"Third Party Cert" added as a named modality option.</em> <span class="coda-impact">Verify Coda modality select list includes "Third Party Cert" or a compatible value</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="arch-callout">
+      <strong>Architect Note — Highest Priority:</strong> The GE Outcomes mapping is the most significant structural gap. The current Coda schema has <code>_Progs Outcomes</code> with an Outcome Type field ("Program Outcome" vs "GE Outcome") but the import pipeline has never populated GE Outcomes — and the junction tables for alignment have no GE rows. Options: (A) Create two new junction tables (Course→GE, Comp→GE) mirroring the existing Program Outcome junction tables, or (B) Extend the existing junction tables with a type filter. Option A is cleaner for querying. The "A-only" constraint for GE at course level (vs full IRMA for program outcomes) also means the alignment select list logic must be conditioned by outcome type.
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===================== RECOMMENDATIONS ===================== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag">Recommendation</span>
+      <h2>Clean Coda Docs for New-Template Programs</h2>
+    </div>
+
+    <div class="rec-box">
+      <h3>The Problem</h3>
+      <p>
+        The existing Coda doc ("Design &amp; Development V3") was built for the old template schema. The new templates add fields, rename tables, and restructure content in ways that are <strong>not backward compatible</strong>. A PD team working from the new CCW, V&amp;S, or PDOW templates will produce content that:
+      </p>
+      <ul>
+        <li>Has no home in current Coda columns (e.g., Course Rationale/Vision, Portfolio Crosswalk, GE Outcome mappings)</li>
+        <li>Maps to renamed concepts that may create confusion in reporting (e.g., "Learning Experience" vs. "Learning Resource")</li>
+        <li>Omits fields Coda currently requires or expects (e.g., ASMT Notes, Course Modality)</li>
+      </ul>
+      <p>
+        Asking a PD team to enter new-template data into the old Coda doc would either force them to ignore new fields, shoehorn content into wrong fields, or produce data that is inconsistent with every other program in that doc — all of which would degrade data integrity and create rework later.
+      </p>
+    </div>
+
+    <div class="rec-box">
+      <h3>Recommendation: New Coda Doc per Program on New Templates</h3>
+      <p>
+        <strong>Any program transitioning to the new templates should be set up in a new Coda doc</strong> built to the new schema — not entered into the existing V3 doc. Specifically:
+      </p>
+      <ol>
+        <li><strong>Freeze the existing V3 doc</strong> for programs already in it. Do not add new programs to V3 once the new-schema doc exists. V3 becomes "legacy" but remains the source of truth for programs already active there.</li>
+        <li><strong>Build a "Design &amp; Development V4" (or equivalent)</strong> with updated tables, new columns, and renamed strategy tables. This doc should be scaffolded and ready for a program before their PD team begins entering any data.</li>
+        <li><strong>Establish a clear cutover gate</strong>: a program gets entered into V4 only after: (a) PMO confirms they are using the new templates, and (b) the Coda architect confirms V4 scaffolding is in place for that program.</li>
+        <li><strong>Do not attempt an in-place migration</strong> of V3 → V4 schema. The column additions and renames are significant enough that a clean new doc reduces risk substantially vs. modifying live production tables.</li>
+      </ol>
+    </div>
+
+    <div class="rec-box">
+      <h3>Open Questions Requiring PMO Decision</h3>
+      <ul>
+        <li><strong>Practicum / Clinical tables:</strong> Removed from base V&amp;S template — are they still needed for health programs? If yes, the new doc needs optional sub-tables for these.</li>
+        <li><strong>Eco-System Components row:</strong> Should this select-list value be retired from the Ecosystem table, or preserved for programs that may still use it?</li>
+        <li><strong>Portfolio Crosswalk:</strong> Is this intended to be Coda-native data, or is it a reference document that lives only in the V&amp;S DOCX? If Coda-native, a new table design is needed before any import work begins.</li>
+        <li><strong>[Additional Feature] Strategy:</strong> How many program-specific named features might appear? This affects whether to design a typed/flexible table vs. separate tables per feature type.</li>
+        <li><strong>CCW Scope/Redev flags:</strong> These moved to the PDOW. Does the Coda workflow need to ingest them from there, or will they be entered manually?</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===================== PRESENTATION ===================== -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-tag">Guidance</span>
+      <h2>How to Present This to Each Audience</h2>
+    </div>
+
+    <p class="section-desc">This analysis serves three different audiences with different needs. Presenting the same table to all three will either over-inform or under-inform.</p>
+
+    <div class="two-col">
+      <div class="audience-card">
+        <h4>🎯 For Kristen &amp; PD PMO</h4>
+        <ul>
+          <li>Lead with the risk banner — frame it as a data integrity risk, not a technical problem.</li>
+          <li>Focus on: which templates changed, what PD teams will notice, and the "no new programs in V3" rule.</li>
+          <li>Present the Open Questions list and request decisions on each item.</li>
+          <li>Suggest a "go/no-go" gate: program gets a Coda doc only after PMO confirms template version.</li>
+          <li><strong>Format:</strong> 1-page summary + this doc as a reference appendix. Or a short slide deck (5 slides: Risk, CCW changes, V&amp;S changes, PDOW changes, Recommendation).</li>
+        </ul>
+      </div>
+      <div class="audience-card">
+        <h4>🏗 For the Coda Architect</h4>
+        <ul>
+          <li>The full diffs table is the primary deliverable — especially the purple "Architect Note" callouts.</li>
+          <li>Key decision points to surface: GE Outcome junction tables, Portfolio Crosswalk table design, flexible Additional Feature strategy table, and column deprecation strategy for old CCW fields.</li>
+          <li>Request an estimate for V4 scaffolding time before any program is promised a date.</li>
+          <li><strong>Format:</strong> This HTML document as-is. Add a schema design review meeting.</li>
+        </ul>
+      </div>
+      <div class="audience-card">
+        <h4>📊 For PD Leadership &amp; Management</h4>
+        <ul>
+          <li>Focus on the recommendation section only — they don't need the detailed diffs.</li>
+          <li>Frame it as a system readiness issue: the tool must be ready before teams start.</li>
+          <li>Highlight the clean-doc recommendation as a risk mitigation investment, not overhead.</li>
+          <li>Give a concrete ask: approve the V4 doc build before the first new-template program kicks off.</li>
+          <li><strong>Format:</strong> 2-paragraph summary email with the recommendation section attached.</li>
+        </ul>
+      </div>
+      <div class="audience-card">
+        <h4>📋 Combined Review Meeting</h4>
+        <ul>
+          <li>If presenting to all three groups together, use this document as the agenda backbone.</li>
+          <li>Walk the diffs tables briefly (10 min) — most questions will cluster around CCW restructuring and PDOW GE Outcomes.</li>
+          <li>Spend the majority of time (20–30 min) on the Open Questions and getting PMO decisions on record.</li>
+          <li>End with a clear action list: who owns V4 scaffolding, when the cutover gate activates, and who communicates to PD teams.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div style="font-size: 11px; color: var(--ink-light); text-align: center;">
+    Analysis based on CCW v3 DOCX · V&amp;S v1 DOCX · PDOW v1 XLSX vs. Coda Design &amp; Development V3 (doc 4YIajnJqvo) schema as encoded in active import skills · May 2026
+  </div>
+
+</div>
+</body>
+</html>
